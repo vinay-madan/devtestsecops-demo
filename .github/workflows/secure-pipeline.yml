@@ -12,6 +12,7 @@ on:
 permissions:
   contents: read
   security-events: write
+  issues: write
 
 env:
   JUICE_IMAGE: bkimminich/juice-shop:latest
@@ -84,22 +85,46 @@ jobs:
             retention-days: 14
 
   dast:
-    name: Stage 2 · Nuclei + ZAP DAST
-    runs-on: ubuntu-latest
-    needs: [e2e]
-    services:
-      juice: { image: bkimminich/juice-shop:latest, ports: ['3000:3000'] }
-    steps:
-      - uses: actions/checkout@v4
-      - run: npx wait-on http://localhost:3000
-      - uses: projectdiscovery/nuclei-action@v3
-        with: { target: 'http://localhost:3000', templates: nuclei-templates/ }
+      name: Stage 2 · Nuclei + ZAP DAST
+      runs-on: ubuntu-latest
+      needs: [e2e]
+      services:
+        juice: { image: bkimminich/juice-shop:latest, ports: ['3000:3000'] }
+      steps:
+        - uses: actions/checkout@v4
 
-      - name: ZAP baseline (passive)
-        uses: zaproxy/action-baseline@v0.12.0
-        with:
-          target: 'http://localhost:3000'
-          fail_action: false
+        - run: npx wait-on http://localhost:3000
+
+        # 1. Nuclei DAST Scan Step
+        - uses: projectdiscovery/nuclei-action@v3
+          with: { target: 'http://localhost:3000', templates: nuclei-templates/ }
+
+        # 2. FIX: Grant global container write privileges to prevent ZAP's [Errno 13] permission crash
+        - name: Fix Workspace Permissions for ZAP
+          run: chmod -R 777 ${{ github.workspace }}
+
+        # 3. FIX: Execute ZAP scan without creating GitHub issue tickets
+        - name: ZAP baseline (passive)
+          uses: zaproxy/action-baseline@v0.13.0 # Updated to the latest stable action release version
+          with:
+            target: 'http://localhost:3000'
+            token: ${{ secrets.GITHUB_TOKEN }}
+            fail_action: false
+            issue_title: 'Security Scan Alert - Vulnerability Detected'
+            # This tells ZAP to store results in the repository instead of opening issues
+            allow_issue_writing: false
+
+        # 4. OPTIONAL: Save ZAP reports as downloadable pipeline summary items
+        - name: Upload ZAP Scan Reports
+          uses: actions/upload-artifact@v4
+          if: always()
+          with:
+            name: zap-dast-report
+            path: |
+              zap_report.html
+              report.json
+            retention-days: 14
+
 
   gate:
     name: Release gate
