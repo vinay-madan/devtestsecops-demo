@@ -1,0 +1,7 @@
+node_modules/
+out/
+.env
+promptfoo/.promptfoo/
+src/juice-shop/
+test-results/
+.idea

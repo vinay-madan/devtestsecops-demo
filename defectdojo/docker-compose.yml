@@ -1,0 +1,48 @@
+#   docker compose -f defectdojo/docker-compose.yml up -d
+#   docker compose -f defectdojo/docker-compose.yml logs initializer | grep "admin password"
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: defectdojo
+      POSTGRES_USER: defectdojo
+      POSTGRES_PASSWORD: defectdojo
+    volumes: [dd-db:/var/lib/postgresql/data]
+
+  redis:
+    image: redis:7-alpine
+    volumes: [dd-redis:/data]
+
+  uwsgi:
+    image: defectdojo/defectdojo-django:latest
+    depends_on: [postgres, redis]
+    environment: &ddenv
+      DD_DATABASE_URL: postgresql://defectdojo:defectdojo@postgres:5432/defectdojo
+      DD_CELERY_BROKER_URL: redis://redis:6379/0
+      DD_ALLOWED_HOSTS: "*"
+      DD_DEBUG: "False"
+      # Any non-empty, stable values are fine for a local demo (do NOT reuse in production).
+      DD_SECRET_KEY: "demo-only-secret-key-not-for-production-0123456789abcdef"
+      DD_CREDENTIAL_AES_256_KEY: "demo-only-aes-256-key-not-for-production-abcdef0123456789"
+    entrypoint: ['/entrypoint-uwsgi.sh']
+
+  celeryworker:
+    image: defectdojo/defectdojo-django:latest
+    depends_on: [postgres, redis]
+    environment: *ddenv
+    entrypoint: ['/entrypoint-celery-worker.sh']
+
+  initializer:
+    image: defectdojo/defectdojo-django:latest
+    depends_on: [postgres]
+    environment: *ddenv
+    entrypoint: ['/entrypoint-initializer.sh']
+
+  nginx:
+    image: defectdojo/defectdojo-nginx:latest
+    depends_on: [uwsgi]
+    ports: ["8080:8080"]
+
+volumes:
+  dd-db:
+  dd-redis:

@@ -1,0 +1,21 @@
+id: juiceshop-exposed-ftp
+info:
+  name: Exposed /ftp directory with sensitive files
+  author: devtestsecops-demo
+  severity: high
+  description: |
+    Juice Shop serves a browsable /ftp directory containing backups, coupon
+    data and other sensitive files that should never be web-reachable.
+  tags: juiceshop,exposure,misconfig
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/ftp"
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["ftp", ".bak", ".md", "acquisitions", "coupons"]
+        condition: or

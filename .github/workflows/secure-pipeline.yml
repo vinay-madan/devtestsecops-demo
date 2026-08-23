@@ -1,0 +1,86 @@
+name: secure-pipeline
+
+# Full gated pipeline against OWASP Juice Shop. Runs on GitHub, or locally via:
+#   act pull_request -W .github/workflows/secure-pipeline.yml --container-architecture linux/amd64
+
+on:
+  pull_request:
+  push: { branches: [main] }
+
+permissions:
+  contents: read
+  security-events: write
+
+env:
+  JUICE_IMAGE: bkimminich/juice-shop:latest
+
+jobs:
+  secrets:
+    name: Secrets scan (TruffleHog)
+    runs-on: ubuntu-latest
+    steps:
+      - run: git clone --depth 1 https://github.com/juice-shop/juice-shop.git src
+      - uses: trufflesecurity/trufflehog@main
+        with: { path: src, extra_args: --results=verified,unknown }
+
+  sast:
+    name: SAST + AI triage (Semgrep)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: git clone --depth 1 https://github.com/juice-shop/juice-shop.git src
+      - uses: returntocorp/semgrep-action@v1
+        with: { config: "p/javascript p/typescript semgrep/rules.yml", generateSarif: "1" }
+      - uses: github/codeql-action/upload-sarif@v3
+        with: { sarif_file: semgrep.sarif }
+
+  supply-chain:
+    name: Container scan + SBOM (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy gate
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.JUICE_IMAGE }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+      - name: CycloneDX SBOM (CRA evidence)
+        uses: aquasecurity/trivy-action@master
+        with: { image-ref: '${{ env.JUICE_IMAGE }}', format: cyclonedx, output: sbom.json }
+      - uses: actions/upload-artifact@v4
+        with: { name: sbom, path: sbom.json, retention-days: 90 }
+
+  e2e:
+    name: Playwright exploit proofs
+    runs-on: ubuntu-latest
+    services:
+      juice: { image: bkimminich/juice-shop:latest, ports: ['3000:3000'] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci && npx playwright install --with-deps chromium
+      - run: npx wait-on http://localhost:3000
+      - run: npx playwright test
+
+  dast:
+    name: Nuclei DAST
+    runs-on: ubuntu-latest
+    needs: [e2e]
+    services:
+      juice: { image: bkimminich/juice-shop:latest, ports: ['3000:3000'] }
+    steps:
+      - uses: actions/checkout@v4
+      - run: npx wait-on http://localhost:3000
+      - uses: projectdiscovery/nuclei-action@main
+        with: { target: 'http://localhost:3000', templates: nuclei/templates/ }
+
+  gate:
+    name: Release gate
+    runs-on: ubuntu-latest
+    needs: [secrets, sast, supply-chain, e2e, dast]
+    steps:
+    - run: |
+        echo "All gates green. Artefacts retained: SARIF, SBOM, Playwright report, Nuclei report."

@@ -1,0 +1,23 @@
+id: juiceshop-missing-security-headers
+info:
+  name: Missing security headers
+  author: devtestsecops-demo
+  severity: medium
+  description: |
+    The application responds without a Content-Security-Policy or
+    X-Frame-Options header, leaving it open to clickjacking and script injection.
+  tags: juiceshop,headers,misconfig
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/"
+    matchers-condition: or
+    matchers:
+      - type: word
+        part: header
+        negative: true
+        words: ["Content-Security-Policy"]
+      - type: word
+        part: header
+        negative: true
+        words: ["X-Frame-Options"]

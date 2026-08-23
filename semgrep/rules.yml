@@ -1,0 +1,41 @@
+rules:
+  - id: sequelize-raw-query-injection
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >
+      Raw SQL assembled by string interpolation and passed to sequelize.query().
+      User input reaches the database unparameterised — SQL injection (this is the
+      Juice Shop admin-login bypass).
+    metadata:
+      cwe: "CWE-89: SQL Injection"
+      owasp: "A03:2021 Injection"
+      references: ["https://owasp.org/www-project-juice-shop/"]
+    patterns:
+      - pattern-either:
+          - pattern: $M.sequelize.query(`...${...}...`)
+          - pattern: $M.sequelize.query("..." + ...)
+          - pattern: $M.query(`...${...}...`)
+
+  - id: hardcoded-key-material
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >
+      Hard-coded key material / signing secret in source. Rotate to a secret store;
+      TruffleHog will also flag this in stage 1.
+    metadata:
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+      owasp: "A07:2021 Identification and Authentication Failures"
+    pattern-regex: '(privateKey|publicKey|hmacKey|jwtSecret|secretKey)\s*[:=]\s*[`"''][^`"'']{16,}'
+
+  - id: insecure-jwt-none-alg
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >
+      JWT verified while permitting the 'none' algorithm or with verification
+      effectively disabled — tokens can be forged.
+    metadata:
+      cwe: "CWE-347: Improper Verification of Cryptographic Signature"
+    patterns:
+      - pattern-either:
+          - pattern: 'jwt.verify(..., {algorithms: [..., "none", ...]})'
+          - pattern: jwt.decode($T)

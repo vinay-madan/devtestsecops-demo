@@ -1,0 +1,19 @@
+{
+  "name": "devtestsecops-demo",
+  "version": "2.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "verify": "node scripts/verify.mjs",
+    "setup": "bash scripts/setup.sh",
+    "stage1": "bash scripts/stage1-static.sh",
+    "stage2": "bash scripts/stage2-dynamic.sh",
+    "exploits": "bash scripts/exploits.sh",
+    "test": "playwright test --headed  --workers=1",
+    "triage": "node scripts/ai-triage.mjs out/semgrep.sarif",
+    "upload": "node scripts/upload-findings.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.0"
+  }
+}
