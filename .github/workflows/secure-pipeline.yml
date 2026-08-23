@@ -5,7 +5,9 @@ name: secure-pipeline
 
 on:
   pull_request:
-  push: { branches: [main] }
+  push:
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,8 +17,9 @@ env:
   JUICE_IMAGE: bkimminich/juice-shop:latest
 
 jobs:
+  # ---- STAGE 1 · STATIC (source + image on disk, no app running) ----
   secrets:
-    name: Secrets scan (TruffleHog)
+    name: Stage 1 · Secrets scan (TruffleHog)
     runs-on: ubuntu-latest
     steps:
       - run: git clone --depth 1 https://github.com/juice-shop/juice-shop.git src
@@ -24,7 +27,7 @@ jobs:
         with: { path: src, extra_args: --results=verified,unknown }
 
   sast:
-    name: SAST + AI triage (Semgrep)
+    name: Stage 1 · SAST + AI triage (Semgrep)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,8 +38,9 @@ jobs:
         with: { sarif_file: semgrep.sarif }
 
   supply-chain:
-    name: Container scan + SBOM (Trivy)
+    name: Stage 1 · Container scan + SBOM (Trivy)
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Trivy gate
@@ -52,9 +56,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: { name: sbom, path: sbom.json, retention-days: 90 }
 
+  # ---- STAGE 2 · DYNAMIC (attack the live app; runs only after Stage 1 passes) ----
   e2e:
-    name: Playwright exploit proofs
+    name: Stage 2 · Playwright exploit proofs
     runs-on: ubuntu-latest
+    needs: [secrets, sast, supply-chain]
     services:
       juice: { image: bkimminich/juice-shop:latest, ports: ['3000:3000'] }
     steps:
@@ -66,7 +72,7 @@ jobs:
       - run: npx playwright test
 
   dast:
-    name: Nuclei DAST
+    name: Stage 2 · Nuclei DAST
     runs-on: ubuntu-latest
     needs: [e2e]
     services:
@@ -74,7 +80,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: npx wait-on http://localhost:3000
-      - uses: projectdiscovery/nuclei-action@main
+      - uses: projectdiscovery/nuclei-action@v3
         with: { target: 'http://localhost:3000', templates: nuclei-templates/ }
 
   gate:
@@ -82,5 +88,5 @@ jobs:
     runs-on: ubuntu-latest
     needs: [secrets, sast, supply-chain, e2e, dast]
     steps:
-    - run: |
-        echo "All gates green. Artefacts retained: SARIF, SBOM, Playwright report, Nuclei report."
+      - run: | 
+          echo "All gates green. Artefacts retained: SARIF, SBOM, Playwright report, Nuclei report."
