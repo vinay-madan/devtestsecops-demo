@@ -113,16 +113,18 @@ jobs:
             issue_title: 'Security Scan Alert - Vulnerability Detected'
             # This tells ZAP to store results in the repository instead of opening issues
             allow_issue_writing: false
+            artifact_name: ''
 
         # 4. OPTIONAL: Save ZAP reports as downloadable pipeline summary items
-        - name: Upload ZAP Scan Reports
+        - name: Upload Verified ZAP Artifacts (V4)
           uses: actions/upload-artifact@v4
           if: always()
           with:
             name: zap-dast-report
             path: |
-              zap_report.html
-              report.json
+              report_json.json
+              report_md.md
+              report_html.html
             retention-days: 14
 
 
