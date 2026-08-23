@@ -20,7 +20,7 @@ echo " up."
 pause
 
 echo "[1/5]  Nuclei — fast DAST that fits a pull-request budget"
-nuclei -u "$BASE" -t nuclei/templates/ -severity low,medium,high,critical -j -o out/nuclei.json -silent -stats || true
+nuclei -u "$BASE" -t nuclei-templates/ -severity low,medium,high,critical -j -o out/nuclei.json -silent -stats || true
 pause
 
 echo "[2/5]  ZAP — baseline passive scan (deeper, still headless)"
