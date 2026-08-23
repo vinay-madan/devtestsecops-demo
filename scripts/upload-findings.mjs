@@ -1,12 +1,32 @@
 #!/usr/bin/env node
 // Push every scanner's native report into DefectDojo so the room sees ONE queue.
 // Requires: DefectDojo running (docker compose -f defectdojo/docker-compose.yml up -d)
-//           DD_TOKEN and DD_ENGAGEMENT set, or edit the defaults below.
+// Auth: uses DD_TOKEN if set; otherwise fetches one from admin creds automatically
+//       (DD_ADMIN_USER / DD_ADMIN_PASSWORD, defaulting to the compose values).
 import { readFileSync, existsSync } from 'node:fs';
 
 const DD_URL = process.env.DD_URL ?? 'http://localhost:8080';
-const TOKEN = process.env.DD_TOKEN ?? 'replace-with-your-api-token';
+const DD_USER = process.env.DD_ADMIN_USER ?? 'admin';
+const DD_PASS = process.env.DD_ADMIN_PASSWORD ?? 'admin1234!';
 const ENGAGEMENT = process.env.DD_ENGAGEMENT ?? '1';
+
+// Use an explicit token if provided, else trade admin creds for one via the API.
+async function getToken() {
+  if (process.env.DD_TOKEN) return process.env.DD_TOKEN;
+  const res = await fetch(`${DD_URL}/api/v2/api-token-auth/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: DD_USER, password: DD_PASS })
+  });
+  if (!res.ok) {
+    console.error(`Could not fetch API token: ${res.status} ${await res.text()}`);
+    console.error('Is DefectDojo up and initialised? Set DD_TOKEN to override.');
+    process.exit(1);
+  }
+  return (await res.json()).token;
+}
+
+const TOKEN = await getToken();
 
 // DefectDojo parser names must match exactly (Settings -> supported scan types).
 const uploads = [

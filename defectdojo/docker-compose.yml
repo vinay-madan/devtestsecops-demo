@@ -24,6 +24,10 @@ services:
       # Any non-empty, stable values are fine for a local demo (do NOT reuse in production).
       DD_SECRET_KEY: "demo-only-secret-key-not-for-production-0123456789abcdef"
       DD_CREDENTIAL_AES_256_KEY: "demo-only-aes-256-key-not-for-production-abcdef0123456789"
+      # Deterministic admin login so the upload script can fetch an API token unattended.
+      DD_ADMIN_USER: "admin"
+      DD_ADMIN_PASSWORD: "admin1234!"
+      DD_ADMIN_MAIL: "admin@demo.local"
     entrypoint: ['/entrypoint-uwsgi.sh']
 
   celeryworker:
