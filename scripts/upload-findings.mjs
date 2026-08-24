@@ -34,7 +34,7 @@ const uploads = [
   { file: 'out/trufflehog.json', scanner: 'Trufflehog Scan' },
   { file: 'out/trivy.json',     scanner: 'Trivy Scan' },
   { file: 'out/nuclei.json',    scanner: 'Nuclei Scan' },
-  { file: 'out/zap.json',       scanner: 'ZAP Scan' },
+  { file: 'out/zap.xml',        scanner: 'ZAP Scan' },
   { file: 'out/promptfoo.json', scanner: 'Generic Findings Import' }
 ];
 

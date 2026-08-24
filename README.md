@@ -95,7 +95,7 @@ npm run stage2        # starts Juice Shop in Docker, then runs everything below
 2. **ZAP** — a deeper baseline passive scan, still headless (`out/zap.json`).
 3. **Live exploits** (`scripts/exploits.sh`) — the three hero moments (below).
 4. **Playwright** — the same exploits proven in a real browser (`npx playwright show-report out/playwright`).
-5. **promptfoo** — red-teams the support chatbot for the leaked coupon; then `upload-findings.mjs` pushes every
+5. **promptfoo** — red-teams the local LLM (Ollama) for the leaked promo code; then `upload-findings.mjs` pushes every
    report into **DefectDojo** as one deduplicated queue with owners and SLAs.
 
 ---
@@ -123,10 +123,9 @@ bottom:
   JWT to the `token` environment variable.
 - **2 · Reflected XSS in search** — `q=<iframe src=javascript:alert(1)>`; the response echoes it unencoded. To watch
   it *fire*, open `http://localhost:3000/#/search?q=%3Ciframe%20src%3Djavascript:alert(1)%3E` in a browser.
-- **3 · Chatbot prompt injection** — reuses `<<token>>` from step 1; asks the bot to reveal its coupon/secret.
+- **3 · LLM prompt injection** — this Juice Shop image ships no chatbot route, so the probe hits the same local model the pipeline uses (Ollama `:11434`) and tries to pull out the planted promo code `JUICE50`.
 
-> The chatbot endpoint needs a valid JWT, so **run the login request first** — it populates the token the chatbot
-> request reuses. For promptfoo, export it: `export JUICE_TOKEN=$(...)` (command in `promptfooconfig.yaml`).
+> No JWT needed — the target is the local LLM, not Juice Shop. Just have the model running: `ollama run llama3.2:3b`.
 
 ---
 

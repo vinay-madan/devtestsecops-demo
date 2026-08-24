@@ -115,6 +115,16 @@ jobs:
             allow_issue_writing: false
             cmd_options: '-I'
 
+        - name: Upload ZAP Scan Artifacts Safely
+          if: always() # Ensures logs upload even if the scan highlights vulnerabilities
+          uses: actions/upload-artifact@v4
+          with:
+            name: zap_scan
+            # ZAP defaults to creating 'report.html' in the working directory
+            path: |
+              report.html
+              zap_report.html    
+
 
   gate:
     name: Release gate

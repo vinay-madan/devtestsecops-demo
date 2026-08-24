@@ -28,11 +28,11 @@ echo "[2/5]  ZAP — baseline passive scan (deeper, still headless)"
 # Reach the host-published Juice Shop via host.docker.internal (add-host makes it work on Linux too).
 ZAP_TARGET=${ZAP_TARGET:-http://host.docker.internal:3000}
 docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/out:/zap/wrk:rw" \
-  ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t "$ZAP_TARGET" -J zap.json -I || true
-echo "       report -> out/zap.json"
+  ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t "$ZAP_TARGET" -J zap.json -x zap.xml -I || true
+echo "       report -> out/zap.json (human) + out/zap.xml (DefectDojo)"
 pause
 
-echo "[3/5]  Live exploits — the three the room will remember"
+echo "[3/5]  Live exploits"
 # Steal the admin JWT once (SQLi) and export it so the chatbot probes authenticate.
 JUICE_TOKEN=$(curl -s "$BASE/rest/user/login" \
   -H 'Content-Type: application/json' \
@@ -46,14 +46,8 @@ npx playwright test tests/security.spec.js --reporter=list || true
 echo "       report: npx playwright show-report out/playwright"
 pause
 
-echo "[5/5]  promptfoo red-teams the support chatbot, then one queue for all of it"
-if [ -z "${JUICE_TOKEN:-}" ]; then
-  echo "       (no stolen token — re-stealing so the chatbot probes authenticate)"
-  JUICE_TOKEN=$(curl -s "$BASE/rest/user/login" \
-    -H 'Content-Type: application/json' \
-    -d '{"email":"'"'"' OR 1=1--","password":"x"}' | jq -r '.authentication.token // empty')
-  export JUICE_TOKEN
-fi
+echo "[5/5]  promptfoo red-teams the local support assistant, then one queue for all of it"
+echo "       (targets Ollama on :11434 — this Juice Shop image ships no chatbot route)"
 ( cd promptfoo && npx promptfoo@latest eval -c promptfooconfig.yaml -o ../out/promptfoo.json || true )
 node scripts/upload-findings.mjs
 echo
