@@ -103,17 +103,18 @@ jobs:
         - name: Fix Workspace Permissions for ZAP
           run: chmod -R 777 ${{ github.workspace }}
 
-        # 3. FIX: Execute ZAP scan without creating GitHub issue tickets
         - name: ZAP baseline (passive)
           uses: zaproxy/action-baseline@v0.13.0 # Updated to the latest stable action release version
           with:
-            target: 'http://localhost:3000'
-            token: ${{ secrets.GITHUB_TOKEN }}
-            fail_action: false
-            issue_title: 'Security Scan Alert - Vulnerability Detected'
-            # This tells ZAP to store results in the repository instead of opening issues
-            allow_issue_writing: false
-            cmd_options: '-I'
+              target: 'http://localhost:3000'
+              token: ${{ secrets.GITHUB_TOKEN }}
+              fail_action: false
+              issue_title: 'Security Scan Alert - Vulnerability Detected'
+              # This tells ZAP to store results in the repository instead of opening issues
+              allow_issue_writing: false
+              cmd_options: '-I'
+              # 👇 CRITICAL FIX: Disables the action's deprecated internal API upload tool
+              artifact_name: ""
 
         - name: Upload ZAP Scan Artifacts Safely
           if: always() # Ensures logs upload even if the scan highlights vulnerabilities
